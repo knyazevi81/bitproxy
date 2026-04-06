@@ -1,0 +1,59 @@
+services:
+  backend:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://user:pass@db:5432/bitproxy
+      SECRET_KEY: ${SECRET_KEY:-changeme-dev-only}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      PROXY_BINARY_PATH: /usr/local/bin/vk-turn-proxy
+      PROXY_CONNECT_ADDR: ${PROXY_CONNECT_ADDR:-127.0.0.1:51820}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - proxy_binary:/usr/local/bin
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  proxy:
+    build:
+      context: ../proxy
+      dockerfile: Dockerfile
+    volumes:
+      - proxy_binary:/usr/local/bin
+    network_mode: host
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: bitproxy
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d bitproxy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  proxy_binary:
