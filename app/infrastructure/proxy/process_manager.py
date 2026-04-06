@@ -1,7 +1,7 @@
 import asyncio
 import os
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -30,6 +30,13 @@ class ProcessManager:
         if not self._port_pool:
             raise RuntimeError("No available ports in pool")
         return self._port_pool.pop()
+
+    def allocate_specific_port(self, port: int) -> bool:
+        """Try to occupy a specific port. Returns True if successful."""
+        if port in self._port_pool:
+            self._port_pool.discard(port)
+            return True
+        return False
 
     def release_port(self, port: int) -> None:
         self._port_pool.add(port)
@@ -69,7 +76,7 @@ class ProcessManager:
                 self._session_statuses[session_ref.id] = SessionStatus.FAILED
 
             async def on_line():
-                session_ref.last_seen_at = datetime.utcnow()
+                session_ref.last_seen_at = datetime.now(timezone.utc)
 
             # Stream stdout and stderr
             t1 = asyncio.create_task(
@@ -126,6 +133,7 @@ class ProcessManager:
         return self._process is not None and self._process.returncode is None
 
     async def get_log_tail(self, session_id: UUID, lines: int = 50) -> list[str]:
+        # Logs are global (single shared process); session_id is not used for filtering
         return self._log_buffer.tail(lines)
 
     def get_session_status(self, session_id: UUID) -> Optional[SessionStatus]:

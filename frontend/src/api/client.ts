@@ -32,6 +32,14 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+    // If the refresh request itself failed, clear auth and redirect — no retry loop
+    if (original.url?.includes('/auth/refresh')) {
+      setAccessToken(null)
+      window.location.href = '/login'
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
 
@@ -46,8 +54,8 @@ api.interceptors.response.use(
 
       isRefreshing = true
       try {
-        // Cookie-based refresh: send empty body, cookie is sent automatically
-        const { data } = await axios.post('/api/auth/refresh', { refresh_token: '' }, { withCredentials: true })
+        // Cookie-based refresh: empty body, httpOnly cookie is sent automatically
+        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
         setAccessToken(data.access_token)
         refreshQueue.forEach((cb) => cb(data.access_token))
         refreshQueue = []

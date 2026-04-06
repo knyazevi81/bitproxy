@@ -1,7 +1,7 @@
 import asyncio
 import re
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 
@@ -60,7 +60,7 @@ async def stream_output(
         if not raw:
             break
         line = raw.decode(errors="replace").rstrip()
-        buffer.append(f"[{datetime.utcnow().isoformat()}] {line}")
+        buffer.append(f"[{datetime.now(timezone.utc).isoformat()}] {line}")
         kind = parser.classify(line)
         await on_line()
         if kind == "active":

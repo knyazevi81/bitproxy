@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.security import HTTPAuthorizationCredentials
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from application.auth.login import login_user, InvalidCredentials
 from application.auth.refresh_token import refresh_access_token, InvalidToken
@@ -7,7 +6,6 @@ from application.auth.register import register_user, UserAlreadyExists
 from presentation.dependencies import CurrentUser, DbDep, get_user_repo, get_token_repo
 from presentation.schemas.auth import (
     LoginRequest,
-    RefreshRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
@@ -56,11 +54,14 @@ async def login(body: LoginRequest, response: Response, db: DbDep):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest, response: Response, db: DbDep):
+async def refresh(request: Request, response: Response, db: DbDep):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
     user_repo = get_user_repo(db)
     token_repo = get_token_repo(db)
     try:
-        access_token, new_refresh = await refresh_access_token(body.refresh_token, user_repo, token_repo)
+        access_token, new_refresh = await refresh_access_token(refresh_token, user_repo, token_repo)
     except InvalidToken as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
@@ -75,10 +76,12 @@ async def refresh(body: RefreshRequest, response: Response, db: DbDep):
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(body: RefreshRequest, response: Response, db: DbDep, current_user: CurrentUser):
+async def logout(request: Request, response: Response, db: DbDep, current_user: CurrentUser):
     from infrastructure.security import hash_token
-    token_repo = get_token_repo(db)
-    await token_repo.revoke(hash_token(body.refresh_token))
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        token_repo = get_token_repo(db)
+        await token_repo.revoke(hash_token(refresh_token))
     response.delete_cookie("refresh_token")
 
 

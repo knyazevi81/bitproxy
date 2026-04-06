@@ -36,8 +36,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - proxy_binary:/usr/local/bin
-    network_mode: host
-    restart: unless-stopped
+    restart: "no"
+    command: ["echo", "binary installed"]
 
   db:
     image: postgres:16-alpine

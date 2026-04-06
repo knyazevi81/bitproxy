@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from domain.repositories import SessionRepository
@@ -28,5 +28,5 @@ async def terminate_session(
     await process_manager.stop(session_id)
 
     session.status = SessionStatus.TERMINATED
-    session.terminated_at = datetime.utcnow()
+    session.terminated_at = datetime.now(timezone.utc)
     await session_repo.update(session)

@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.repositories import SessionRepository
@@ -98,6 +99,14 @@ class SqlSessionRepository(SessionRepository):
         await self._session.commit()
         await self._session.refresh(model)
         return _to_domain(model)
+
+    async def mark_all_active_as_failed(self) -> None:
+        await self._session.execute(
+            update(SessionModel)
+            .where(SessionModel.status.in_([SessionStatus.PENDING.value, SessionStatus.ACTIVE.value]))
+            .values(status=SessionStatus.FAILED.value, terminated_at=datetime.now(timezone.utc))
+        )
+        await self._session.commit()
 
     async def delete(self, session_id: UUID) -> None:
         result = await self._session.execute(select(SessionModel).where(SessionModel.id == session_id))
