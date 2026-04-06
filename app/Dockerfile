@@ -1,13 +1,23 @@
-FROM python:3.12-slim
+FROM python:3.13.7-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install deps
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ADD requirements.txt /app
 
-# Copy source
-COPY . .
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+# RUN apt install ping curl
 
-# Run migrations then start uvicorn
-CMD ["sh", "-c", "uvicorn presentation.main:app --host 0.0.0.0 --port 8000"]
+# исправить перенос всего репозитория
+COPY . /app 
+
+EXPOSE 8000
+
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
