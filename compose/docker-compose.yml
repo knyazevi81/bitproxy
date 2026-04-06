@@ -18,7 +18,7 @@ services:
         condition: service_healthy
     volumes:
       - proxy_binary:/usr/local/bin
-    restart: unless-stopped
+    # restart: unless-stopped
 
   frontend:
     build:
